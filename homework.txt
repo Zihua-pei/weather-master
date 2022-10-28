@@ -1,0 +1,29 @@
+
+
+service A -> service B
+     application-name/uri..
+
+     discovery service
+        application-name : ip,port, ip port
+
+1. service A -> /application-name -> B
+2. service A -> send rest api request to fetch ip from discovery service
+3. service A gets 2 ip, use [ribbon] to decide the ip address
+4. service A -> send rest api request /ip2/.. -> B
+
+
+
+
+Homework:
+1. merge university service into this microservice
+2. configure gateway -> routes to university service ( gateway 配置加3行)
+3. write endpoint in search service -> fetch data from university service（在search中的pom.xml中加dependence/ search+controller）
+4. write endpoint in search service -> fetch all employees from dummy data(retry) + fetch all student info  (同上 + 搜索retry的annotation)·
+
+5. configure hystrix fail tolerance on/employees in employee service (medium)（新建 文件夹hy 可能在添加annotation）
+
+6. provide exception handling in search application (search中add exception 包 并调用)
+7. provide log in your implementations（）
+
+8. create centralized security service (hard)
+9. create centralized co-relation id / unique id in gateway (medium)

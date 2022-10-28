@@ -1,0 +1,56 @@
+package com.example.search.service;
+
+import com.example.search.exception.MaxTryException;
+import com.netflix.hystrix.contrib.javanica.annotation.HystrixCommand;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+
+@Service
+public class EmployeeServiceImpl implements EmployeeService{
+    private final ExecutorService pool;
+    private final RestTemplate ribbonRestTemplate;
+
+    @Autowired
+    public EmployeeServiceImpl(ExecutorService pool, RestTemplate ribbonRestTemplate) {
+        this.pool = pool;
+        this.ribbonRestTemplate = ribbonRestTemplate;
+    }
+
+    @Override
+    @HystrixCommand(fallbackMethod = "FallBack")
+    public Map<Integer, Map[]> fetchAllEmployeesByAges(List<Integer> ages) {
+        List<CompletableFuture> completableFutureList = new ArrayList<>();
+
+        int count = 0;
+        try {
+            for(int age: ages) {
+                completableFutureList.add(
+                        CompletableFuture.supplyAsync(
+                                () -> ribbonRestTemplate.getForObject("http://employee-service/employees?age=" + age, HashMap[].class)
+                                , pool
+                        )
+                );
+            }
+            return CompletableFuture.allOf(completableFutureList.toArray(new CompletableFuture[0]))
+                    .thenApply(VOID -> {
+                        Map<Integer, Map[]> res = new HashMap<>();
+                        for(int i = 0; i < completableFutureList.size(); i++) {
+                            res.put(ages.get(i), (Map[])completableFutureList.get(i).join());
+                        }
+                        return res;
+                    }).join();
+        }catch (Exception e){
+            count++;
+            System.out.println("retrying...");
+        }
+        throw new MaxTryException("Too many failed.");
+    }
+}
